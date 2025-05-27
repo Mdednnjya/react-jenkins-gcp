@@ -5,10 +5,12 @@ const redis = require('redis');
 const app = express();
 const port = 3001;
 
-// Redis client setup
+// Redis client setup with proper v4+ syntax
 const client = redis.createClient({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379
+  socket: {
+    host: process.env.REDIS_HOST || 'redis',
+    port: parseInt(process.env.REDIS_PORT) || 6379
+  }
 });
 
 client.on('error', (err) => {
@@ -16,11 +18,25 @@ client.on('error', (err) => {
 });
 
 client.on('connect', () => {
-  console.log('Connected to Redis');
+  console.log('Connected to Redis successfully');
+});
+
+client.on('ready', () => {
+  console.log('Redis client ready to use');
 });
 
 // Connect to Redis
-client.connect();
+async function connectRedis() {
+  try {
+    await client.connect();
+    console.log('Redis connection established');
+  } catch (error) {
+    console.error('Failed to connect to Redis:', error);
+    process.exit(1);
+  }
+}
+
+connectRedis();
 
 app.use(cors());
 app.use(express.json());
@@ -119,14 +135,39 @@ app.delete('/api/todos/:id', async (req, res) => {
 });
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    redis: client.isOpen ? 'connected' : 'disconnected'
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    const redisStatus = client.isOpen ? 'connected' : 'disconnected';
+    const redisPing = client.isOpen ? await client.ping() : 'disconnected';
+    
+    res.json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      redis: redisStatus,
+      redis_ping: redisPing
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'unhealthy',
+      error: error.message,
+      redis: 'error'
+    });
+  }
 });
 
 app.listen(port, () => {
   console.log(`API server running on port ${port}`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+  console.log('Shutting down gracefully...');
+  await client.quit();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('Shutting down gracefully...');
+  await client.quit();
+  process.exit(0);
 });
