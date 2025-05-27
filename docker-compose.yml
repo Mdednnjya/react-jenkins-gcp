@@ -2,47 +2,66 @@ version: '3.8'
 
 services:
   redis:
-    image: redis:alpine
+    image: redis:7-alpine
     container_name: todo-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
-    restart: unless-stopped
     networks:
       - todo-network
-    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   api:
     build:
-      context: ./api
+      context: ./app/api
       dockerfile: Dockerfile
     container_name: todo-api
+    restart: unless-stopped
     ports:
       - "3001:3001"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - NODE_ENV=production
     depends_on:
-      - redis
-    restart: unless-stopped
+      redis:
+        condition: service_healthy
     networks:
       - todo-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   frontend:
     build:
-      context: .
+      context: ./app
       dockerfile: Dockerfile
     container_name: todo-frontend
+    restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
-      - api
-    restart: unless-stopped
+      api:
+        condition: service_healthy
     networks:
       - todo-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 networks:
   todo-network:
     driver: bridge
+    name: todo-network
 
 volumes:
   redis_data:
