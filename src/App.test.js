@@ -10,7 +10,7 @@ test('renders todo app title', () => {
 test('can add a new todo', () => {
   render(<App />);
   const input = screen.getByPlaceholderText(/Add new todo/i);
-  const addButton = screen.getByText(/Add/i);
+  const addButton = screen.getByRole('button', { name: /add/i });
   
   fireEvent.change(input, { target: { value: 'Test todo' } });
   fireEvent.click(addButton);
@@ -21,7 +21,7 @@ test('can add a new todo', () => {
 test('can toggle todo completion', () => {
   render(<App />);
   const input = screen.getByPlaceholderText(/Add new todo/i);
-  const addButton = screen.getByText(/Add/i);
+  const addButton = screen.getByRole('button', { name: /add/i });
   
   fireEvent.change(input, { target: { value: 'Test todo' } });
   fireEvent.click(addButton);
@@ -30,4 +30,9 @@ test('can toggle todo completion', () => {
   fireEvent.click(checkbox);
   
   expect(checkbox).toBeChecked();
+});
+
+test('app renders without crashing', () => {
+  render(<App />);
+  expect(screen.getByText(/Jenkins Todo Demo/i)).toBeInTheDocument();
 });
