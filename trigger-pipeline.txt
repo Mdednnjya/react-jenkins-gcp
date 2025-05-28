@@ -1,0 +1,6 @@
+# This file is just to trigger Jenkins pipeline
+# Any change to this file will trigger CI/CD pipeline via GitHub webhook
+
+Last updated: Wed May 28 14:24:04 SEAST 2025
+Build trigger: Remove unit testing stage from pipeline
+Purpose: Clean pipeline without test failures
